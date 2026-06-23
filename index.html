@@ -1,0 +1,1385 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>점심 메뉴 룰렛</title>
+  <style>
+    :root {
+      --ink: #151b29;
+      --ink-soft: #354052;
+      --muted: #8b93a1;
+      --line: #e5e7eb;
+      --panel: rgba(255, 255, 255, 0.92);
+      --panel-solid: #ffffff;
+      --bg: #f6f5f2;
+      --shadow: 0 18px 46px rgba(21, 27, 41, 0.12);
+      --shadow-soft: 0 10px 28px rgba(21, 27, 41, 0.09);
+      --radius: 8px;
+      --green: #e7f4ec;
+      --peach: #fff0dc;
+      --lavender: #ece8ff;
+      --rose: #ffe2e9;
+      --blue: #e0f0ff;
+      --mint: #dcf6f0;
+      --yellow: #fff7c8;
+      --coral: #ffe5d5;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: var(--bg);
+    }
+
+    body {
+      min-height: 100%;
+      margin: 0;
+      color: var(--ink);
+      font-family: "Inter", "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.82), transparent 34%),
+        linear-gradient(135deg, #fbfaf8 0%, #f2f1ee 100%);
+    }
+
+    button,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.52;
+    }
+
+    .app {
+      width: min(1480px, 100%);
+      min-height: 100svh;
+      margin: 0 auto;
+      padding: clamp(22px, 4vw, 56px);
+      display: grid;
+      grid-template-columns: minmax(320px, 1.16fr) minmax(320px, 0.84fr);
+      gap: clamp(28px, 5vw, 72px);
+      align-items: center;
+    }
+
+    .roulette-area {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(18px, 2.4vw, 28px);
+      padding-top: 22px;
+    }
+
+    .wheel-shell {
+      position: relative;
+      width: min(620px, 78vw);
+      aspect-ratio: 1;
+      isolation: isolate;
+      filter: drop-shadow(0 22px 24px rgba(21, 27, 41, 0.12));
+    }
+
+    .wheel-rotor {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      overflow: hidden;
+      transform: rotate(0deg);
+      will-change: transform;
+      background: #fff;
+      box-shadow: inset 0 0 0 8px rgba(255, 255, 255, 0.92);
+    }
+
+    #wheelCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+    }
+
+    .hub {
+      position: absolute;
+      z-index: 3;
+      top: 50%;
+      left: 50%;
+      width: 17%;
+      aspect-ratio: 1;
+      transform: translate(-50%, -50%);
+      border: clamp(6px, 1vw, 10px) solid #fff;
+      border-radius: 50%;
+      background: radial-gradient(circle at 32% 28%, #202838 0 12%, #111827 54%, #0a1020 100%);
+      box-shadow: 0 10px 22px rgba(21, 27, 41, 0.22);
+      pointer-events: none;
+    }
+
+    .pointer {
+      position: absolute;
+      z-index: 5;
+      top: -38px;
+      left: 50%;
+      width: clamp(56px, 8vw, 78px);
+      height: clamp(76px, 10vw, 104px);
+      transform: translateX(-50%);
+      filter: drop-shadow(0 9px 10px rgba(21, 27, 41, 0.18));
+      pointer-events: none;
+    }
+
+    .pointer::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, #1f2937 0%, #111827 78%, #0d1320 100%);
+      clip-path: polygon(50% 100%, 4% 0, 96% 0);
+      border-radius: 7px 7px 18px 18px;
+      transform-origin: 50% 8%;
+    }
+
+    .pointer::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 80%;
+      height: 11px;
+      border-radius: 999px;
+      background: #1b2433;
+      transform: translateX(-50%);
+    }
+
+    .wheel-shell.is-spinning .pointer::before {
+      animation: pointer-tap 92ms ease-in-out infinite alternate;
+    }
+
+    .main-button {
+      width: min(520px, 100%);
+      min-height: 66px;
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, #182132 0%, #101827 100%);
+      color: #fff;
+      font-size: clamp(22px, 2.2vw, 32px);
+      font-weight: 800;
+      letter-spacing: 0;
+      box-shadow: 0 12px 24px rgba(17, 24, 39, 0.24);
+      transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+    }
+
+    .main-button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 28px rgba(17, 24, 39, 0.26);
+    }
+
+    .main-button:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .quick-actions {
+      width: min(520px, 100%);
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: clamp(10px, 1.8vw, 18px);
+    }
+
+    .sound-controls {
+      width: min(520px, 100%);
+      display: flex;
+      justify-content: center;
+    }
+
+    .volume-control {
+      width: 100%;
+      min-height: 58px;
+      border-radius: var(--radius);
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 14px;
+      padding: 10px 14px 10px 18px;
+      background: var(--panel-solid);
+      border: 1px solid rgba(229, 231, 235, 0.82);
+      box-shadow: var(--shadow-soft);
+      transition: opacity 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+    }
+
+    .volume-control.is-muted {
+      opacity: 0.72;
+    }
+
+    .volume-label {
+      color: var(--ink);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .volume-steps {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .volume-step {
+      min-height: 38px;
+      border-radius: 7px;
+      border: 1px solid #e4e7ec;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 7px 0;
+      background: #f7f8f9;
+      box-shadow: none;
+      transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+    }
+
+    .volume-step::before {
+      content: "";
+      width: 12px;
+      height: calc(7px + var(--level) * 4px);
+      border-radius: 999px;
+      background: #b7bfcb;
+      transition: background 140ms ease, height 140ms ease;
+    }
+
+    .volume-step:hover:not(:disabled) {
+      transform: translateY(-1px);
+      border-color: #cfd5dd;
+      background: #fff;
+    }
+
+    .volume-step.is-filled::before {
+      background: #111827;
+    }
+
+    .volume-step.is-active {
+      border-color: #111827;
+      background: #111827;
+    }
+
+    .volume-step.is-active::before {
+      background: #fff;
+    }
+
+    .tool-button,
+    .panel-button,
+    .result-button,
+    .remove-button {
+      min-height: 56px;
+      border-radius: var(--radius);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: var(--panel-solid);
+      color: var(--ink);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(229, 231, 235, 0.82);
+      font-weight: 700;
+      transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+    }
+
+    .tool-button:hover:not(:disabled),
+    .panel-button:hover:not(:disabled),
+    .result-button:hover:not(:disabled),
+    .remove-button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      border-color: #d2d6dd;
+      box-shadow: 0 14px 28px rgba(21, 27, 41, 0.11);
+    }
+
+    .tool-button .symbol {
+      width: 22px;
+      display: inline-flex;
+      justify-content: center;
+      color: #111827;
+      font-size: 23px;
+      line-height: 1;
+    }
+
+    .status-line {
+      min-height: 24px;
+      color: var(--muted);
+      font-size: 15px;
+      text-align: center;
+    }
+
+    .panels {
+      min-width: 0;
+      display: grid;
+      gap: clamp(18px, 2.6vw, 28px);
+    }
+
+    .panel {
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      padding: clamp(20px, 2.8vw, 32px);
+      backdrop-filter: blur(8px);
+    }
+
+    .panel h2 {
+      margin: 0 0 18px;
+      color: var(--ink);
+      font-size: clamp(22px, 2vw, 30px);
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .input-box {
+      width: 100%;
+      min-height: 148px;
+      resize: vertical;
+      border: 1px solid #d9dde3;
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.74);
+      outline: none;
+      box-shadow: inset 0 1px 0 rgba(17, 24, 39, 0.03);
+      transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+    }
+
+    .input-box:focus {
+      border-color: #9aa6b8;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(21, 27, 41, 0.08);
+    }
+
+    .input-box::placeholder {
+      color: #a4a9b2;
+    }
+
+    .input-hint {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .items-box {
+      min-height: 260px;
+      border: 1px solid #d9dde3;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.62);
+      overflow: hidden;
+    }
+
+    .items-list {
+      max-height: 338px;
+      overflow: auto;
+      padding: 8px;
+    }
+
+    .item-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      min-height: 48px;
+      padding: 9px 8px 9px 12px;
+      border-radius: 7px;
+      color: var(--ink-soft);
+    }
+
+    .item-row + .item-row {
+      border-top: 1px solid rgba(229, 231, 235, 0.72);
+    }
+
+    .item-row.is-selected {
+      background: rgba(17, 24, 39, 0.06);
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+    .color-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 6px rgba(21, 27, 41, 0.16);
+    }
+
+    .item-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .remove-button {
+      width: 34px;
+      min-height: 34px;
+      padding: 0;
+      border-radius: 7px;
+      box-shadow: none;
+      color: #6b7280;
+      background: rgba(255, 255, 255, 0.72);
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .empty-state {
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      padding: 28px;
+      color: #9aa1ad;
+      text-align: center;
+    }
+
+    .empty-icon {
+      width: 58px;
+      height: 68px;
+      margin: 0 auto 18px;
+      border: 5px solid #e2e4e8;
+      border-radius: 7px;
+      position: relative;
+    }
+
+    .empty-icon::before {
+      content: "";
+      position: absolute;
+      top: -13px;
+      left: 50%;
+      width: 28px;
+      height: 18px;
+      border: 5px solid #e2e4e8;
+      border-bottom: 0;
+      border-radius: 14px 14px 0 0;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.62);
+    }
+
+    .empty-icon::after {
+      content: "";
+      position: absolute;
+      inset: 17px 13px;
+      background:
+        linear-gradient(#e2e4e8 0 0) 0 0 / 100% 4px no-repeat,
+        linear-gradient(#e2e4e8 0 0) 0 14px / 100% 4px no-repeat,
+        linear-gradient(#e2e4e8 0 0) 0 28px / 100% 4px no-repeat;
+    }
+
+    .empty-title {
+      margin: 0 0 10px;
+      font-weight: 800;
+      color: #858d99;
+    }
+
+    .empty-copy {
+      margin: 0;
+      line-height: 1.55;
+      font-size: 15px;
+    }
+
+    .panel-actions {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .panel-button.primary {
+      color: #fff;
+      background: linear-gradient(180deg, #182132 0%, #101827 100%);
+      border-color: #111827;
+    }
+
+    .panel-button.secondary {
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.86);
+    }
+
+    .result-overlay {
+      position: fixed;
+      z-index: 40;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(17, 24, 39, 0.58);
+      backdrop-filter: blur(6px);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 240ms ease, visibility 240ms ease;
+      overflow: hidden;
+    }
+
+    .result-overlay.show {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .result-card {
+      position: relative;
+      z-index: 2;
+      width: min(440px, 100%);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 28px 70px rgba(0, 0, 0, 0.24);
+      padding: clamp(26px, 5vw, 44px);
+      text-align: center;
+      transform: translateY(22px) scale(0.96);
+      opacity: 0;
+    }
+
+    .result-overlay.show .result-card {
+      animation: result-in 520ms cubic-bezier(0.2, 0.9, 0.18, 1) forwards;
+    }
+
+    .result-kicker {
+      margin: 0 0 12px;
+      color: #687386;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .result-value {
+      margin: 0;
+      color: var(--ink);
+      font-size: clamp(42px, 10vw, 68px);
+      line-height: 1.08;
+      letter-spacing: 0;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+    }
+
+    .result-note {
+      margin: 16px 0 26px;
+      color: #7a8392;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .result-button {
+      width: 100%;
+      color: #fff;
+      background: linear-gradient(180deg, #182132 0%, #101827 100%);
+      border-color: #111827;
+      box-shadow: 0 12px 26px rgba(17, 24, 39, 0.18);
+    }
+
+    .confetti-layer {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .confetti-piece,
+    .spark-piece {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      opacity: 0;
+      pointer-events: none;
+      background: var(--particle-color);
+    }
+
+    .confetti-piece {
+      width: var(--particle-width);
+      height: var(--particle-height);
+      border-radius: 2px;
+      animation: confetti-burst var(--particle-duration) ease-out forwards;
+    }
+
+    .spark-piece {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      box-shadow: 0 0 18px var(--particle-color);
+      animation: sparkle-burst var(--particle-duration) ease-out forwards;
+    }
+
+    @keyframes pointer-tap {
+      0% {
+        transform: rotate(-1.2deg);
+      }
+      100% {
+        transform: rotate(1.2deg);
+      }
+    }
+
+    @keyframes result-in {
+      0% {
+        transform: translateY(22px) scale(0.96);
+        opacity: 0;
+      }
+      70% {
+        transform: translateY(-4px) scale(1.01);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes confetti-burst {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) translate(0, 0) rotate(0deg) scale(0.7);
+      }
+      12% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) translate(var(--particle-x), var(--particle-y)) rotate(var(--particle-rotate)) scale(1);
+      }
+    }
+
+    @keyframes sparkle-burst {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) translate(0, 0) scale(0.2);
+      }
+      18% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) translate(var(--particle-x), var(--particle-y)) scale(0.1);
+      }
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        min-height: auto;
+        grid-template-columns: 1fr;
+        align-items: start;
+        padding-bottom: 34px;
+      }
+
+      .roulette-area {
+        padding-top: 14px;
+      }
+
+      .wheel-shell {
+        width: min(520px, 88vw);
+      }
+    }
+
+    @media (max-width: 560px) {
+      .app {
+        padding: 18px;
+        gap: 22px;
+      }
+
+      .wheel-shell {
+        width: min(420px, 90vw);
+      }
+
+      .pointer {
+        top: -26px;
+      }
+
+      .main-button {
+        min-height: 58px;
+      }
+
+      .quick-actions {
+        gap: 10px;
+      }
+
+      .volume-control {
+        grid-template-columns: 1fr;
+        gap: 9px;
+        padding: 12px;
+      }
+
+      .volume-label {
+        text-align: center;
+        font-size: 15px;
+      }
+
+      .tool-button {
+        min-height: 52px;
+        gap: 6px;
+        font-size: 15px;
+      }
+
+      .tool-button .symbol {
+        width: 18px;
+        font-size: 20px;
+      }
+
+      .panel {
+        padding: 18px;
+      }
+
+      .panel-actions {
+        gap: 10px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="점심 메뉴 룰렛">
+    <section class="roulette-area" aria-label="룰렛">
+      <div class="wheel-shell" id="wheelShell">
+        <div class="pointer" aria-hidden="true"></div>
+        <div class="wheel-rotor" id="wheelRotor">
+          <canvas id="wheelCanvas" aria-label="룰렛 판"></canvas>
+        </div>
+        <div class="hub" aria-hidden="true"></div>
+      </div>
+
+      <button class="main-button" id="spinButton" type="button">시작하기</button>
+
+      <div class="quick-actions" aria-label="빠른 설정">
+        <button class="tool-button" id="shuffleButton" type="button">
+          <span class="symbol" aria-hidden="true">⇄</span>
+          섞기
+        </button>
+        <button class="tool-button" id="resetButton" type="button">
+          <span class="symbol" aria-hidden="true">↻</span>
+          초기화
+        </button>
+        <button class="tool-button" id="soundButton" type="button" aria-pressed="true">
+          <span class="symbol" aria-hidden="true" id="soundSymbol">♪</span>
+          <span id="soundText">사운드</span>
+        </button>
+      </div>
+      <div class="sound-controls" aria-label="사운드 설정">
+        <div class="volume-control" id="volumeControl">
+          <span class="volume-label">효과음 크기</span>
+          <div class="volume-steps" role="group" aria-label="효과음 크기 5단계">
+            <button class="volume-step" type="button" data-volume="1" style="--level: 1" aria-label="효과음 1단계"></button>
+            <button class="volume-step" type="button" data-volume="2" style="--level: 2" aria-label="효과음 2단계"></button>
+            <button class="volume-step" type="button" data-volume="3" style="--level: 3" aria-label="효과음 3단계"></button>
+            <button class="volume-step" type="button" data-volume="4" style="--level: 4" aria-label="효과음 4단계"></button>
+            <button class="volume-step" type="button" data-volume="5" style="--level: 5" aria-label="효과음 5단계"></button>
+          </div>
+        </div>
+      </div>
+      <div class="status-line" id="statusLine" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="panels" aria-label="항목 설정">
+      <article class="panel">
+        <h2>입력창</h2>
+        <textarea class="input-box" id="itemInput" spellcheck="false" placeholder="항목을 입력하세요"></textarea>
+        <p class="input-hint">한 줄에 하나씩 입력하면 룰렛 조각으로 적용됩니다.</p>
+      </article>
+
+      <article class="panel">
+        <h2>입력된 항목</h2>
+        <div class="items-box" id="itemsBox"></div>
+        <div class="panel-actions">
+          <button class="panel-button primary" id="applyButton" type="button">적용</button>
+          <button class="panel-button secondary" id="clearButton" type="button">비우기</button>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <div class="result-overlay" id="resultOverlay" aria-hidden="true">
+    <div class="confetti-layer" id="confettiLayer" aria-hidden="true"></div>
+    <section class="result-card" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+      <p class="result-kicker">룰렛 결과</p>
+      <h2 class="result-value" id="resultTitle"></h2>
+      <p class="result-note">오늘은 이 메뉴로 가볍게 결정해볼게요.</p>
+      <button class="result-button" id="resultCloseButton" type="button">확인</button>
+    </section>
+  </div>
+
+  <script>
+    const initialItems = [
+      "김치찌개",
+      "돈가스",
+      "비빔밥",
+      "초밥",
+      "제육볶음",
+      "쌀국수",
+      "파스타",
+      "냉면"
+    ];
+
+    const palette = [
+      "#e7f4ec",
+      "#fff0dc",
+      "#ece8ff",
+      "#ffe2e9",
+      "#e0f0ff",
+      "#dcf6f0",
+      "#fff7c8",
+      "#ffe5d5",
+      "#e8edff",
+      "#fde7f2"
+    ];
+
+    const wheelShell = document.querySelector("#wheelShell");
+    const wheelRotor = document.querySelector("#wheelRotor");
+    const wheelCanvas = document.querySelector("#wheelCanvas");
+    const itemInput = document.querySelector("#itemInput");
+    const itemsBox = document.querySelector("#itemsBox");
+    const spinButton = document.querySelector("#spinButton");
+    const shuffleButton = document.querySelector("#shuffleButton");
+    const resetButton = document.querySelector("#resetButton");
+    const soundButton = document.querySelector("#soundButton");
+    const soundText = document.querySelector("#soundText");
+    const soundSymbol = document.querySelector("#soundSymbol");
+    const volumeControl = document.querySelector("#volumeControl");
+    const volumeButtons = [...document.querySelectorAll(".volume-step")];
+    const applyButton = document.querySelector("#applyButton");
+    const clearButton = document.querySelector("#clearButton");
+    const statusLine = document.querySelector("#statusLine");
+    const resultOverlay = document.querySelector("#resultOverlay");
+    const resultTitle = document.querySelector("#resultTitle");
+    const resultCloseButton = document.querySelector("#resultCloseButton");
+    const confettiLayer = document.querySelector("#confettiLayer");
+    const ctx = wheelCanvas.getContext("2d");
+    const volumeMultipliers = [0.42, 0.72, 1, 1.42, 1.88];
+
+    const state = {
+      items: [...initialItems],
+      rotation: 0,
+      spinning: false,
+      soundOn: true,
+      volumeLevel: 4,
+      audioContext: null,
+      lastTickAt: 0,
+      lastTickSlice: null,
+      lastResultIndex: -1,
+      canvasSize: 0
+    };
+
+    itemInput.value = initialItems.join("\n");
+
+    function normalizeDegrees(degrees) {
+      return ((degrees % 360) + 360) % 360;
+    }
+
+    function parseItems(value) {
+      return value
+        .split(/\n|,|，|;/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .slice(0, 24);
+    }
+
+    function syncInput() {
+      itemInput.value = state.items.join("\n");
+    }
+
+    function setControls() {
+      const hasEnoughItems = state.items.length >= 2;
+      spinButton.disabled = state.spinning || !hasEnoughItems;
+      applyButton.disabled = state.spinning;
+      clearButton.disabled = state.spinning;
+      shuffleButton.disabled = state.spinning || state.items.length < 2;
+      resetButton.disabled = state.spinning;
+      soundButton.disabled = state.spinning;
+      volumeButtons.forEach((button) => {
+        button.disabled = state.spinning;
+      });
+      updateSoundUI();
+      updateVolumeButtons();
+
+      if (state.spinning) {
+        spinButton.textContent = "회전 중";
+        statusLine.textContent = "룰렛이 자연스럽게 감속하고 있어요.";
+      } else {
+        spinButton.textContent = "시작하기";
+        statusLine.textContent = hasEnoughItems
+          ? `항목 ${state.items.length}개가 준비되었습니다.`
+          : "룰렛을 돌리려면 항목을 2개 이상 입력해주세요.";
+      }
+    }
+
+    function setItems(items, options = {}) {
+      state.items = [...items];
+      if (!options.keepResult) {
+        state.lastResultIndex = -1;
+      }
+      if (!options.keepInput) {
+        syncInput();
+      }
+      drawWheel();
+      renderItems();
+      setControls();
+    }
+
+    function resizeWheel() {
+      const rect = wheelRotor.getBoundingClientRect();
+      const size = Math.max(220, Math.round(rect.width));
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      if (state.canvasSize === size && wheelCanvas.width === Math.round(size * dpr)) {
+        drawWheel();
+        return;
+      }
+
+      state.canvasSize = size;
+      wheelCanvas.width = Math.round(size * dpr);
+      wheelCanvas.height = Math.round(size * dpr);
+      wheelCanvas.style.width = `${size}px`;
+      wheelCanvas.style.height = `${size}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawWheel();
+    }
+
+    function drawWheel() {
+      const size = state.canvasSize || Math.round(wheelRotor.getBoundingClientRect().width) || 520;
+      const center = size / 2;
+      const radius = center - Math.max(7, size * 0.014);
+      const items = state.items;
+      const count = Math.max(items.length, 1);
+      const slice = (Math.PI * 2) / count;
+
+      ctx.clearRect(0, 0, size, size);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(center, center, radius, 0, Math.PI * 2);
+      ctx.clip();
+
+      if (!items.length) {
+        ctx.fillStyle = "#f2f3f5";
+        ctx.fillRect(0, 0, size, size);
+        ctx.restore();
+        ctx.save();
+        ctx.fillStyle = "#9aa1ad";
+        ctx.font = `800 ${Math.max(18, size * 0.042)}px Inter, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("항목을 입력하세요", center, center - size * 0.16);
+        ctx.restore();
+        drawRim(center, radius, size);
+        return;
+      }
+
+      items.forEach((item, index) => {
+        const start = -Math.PI / 2 + index * slice;
+        const end = start + slice;
+        ctx.beginPath();
+        ctx.moveTo(center, center);
+        ctx.arc(center, center, radius, start, end);
+        ctx.closePath();
+        ctx.fillStyle = palette[index % palette.length];
+        ctx.fill();
+        ctx.lineWidth = Math.max(4, size * 0.009);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.96)";
+        ctx.stroke();
+      });
+
+      items.forEach((item, index) => {
+        const mid = -Math.PI / 2 + (index + 0.5) * slice;
+        const midNormalized = ((mid % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        const textRadius = radius * (items.length > 12 ? 0.64 : 0.6);
+        const fontSize = Math.max(12, Math.min(22, size / Math.max(24, items.length * 1.55)));
+        const label = fitLabel(item, items.length > 12 ? 9 : 12);
+
+        ctx.save();
+        ctx.translate(center, center);
+        ctx.rotate(mid);
+        ctx.translate(textRadius, 0);
+        if (midNormalized > Math.PI / 2 && midNormalized < Math.PI * 1.5) {
+          ctx.rotate(Math.PI);
+        }
+        ctx.fillStyle = "#273247";
+        ctx.font = `800 ${fontSize}px Inter, "Noto Sans KR", sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, 0, 0);
+        ctx.restore();
+      });
+
+      ctx.restore();
+      drawRim(center, radius, size);
+    }
+
+    function drawRim(center, radius, size) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(center, center, radius, 0, Math.PI * 2);
+      ctx.lineWidth = Math.max(7, size * 0.014);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.96)";
+      ctx.shadowColor = "rgba(21, 27, 41, 0.15)";
+      ctx.shadowBlur = size * 0.02;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function fitLabel(value, maxLength) {
+      return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
+    }
+
+    function renderItems() {
+      itemsBox.innerHTML = "";
+
+      if (!state.items.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty-state";
+        empty.innerHTML = `
+          <div>
+            <div class="empty-icon" aria-hidden="true"></div>
+            <p class="empty-title">입력된 항목이 없습니다.</p>
+            <p class="empty-copy">입력창에 항목을 입력하고 적용 버튼을 눌러주세요.</p>
+          </div>
+        `;
+        itemsBox.append(empty);
+        return;
+      }
+
+      const list = document.createElement("div");
+      list.className = "items-list";
+      list.setAttribute("role", "list");
+
+      state.items.forEach((item, index) => {
+        const row = document.createElement("div");
+        row.className = `item-row${index === state.lastResultIndex ? " is-selected" : ""}`;
+        row.setAttribute("role", "listitem");
+
+        const dot = document.createElement("span");
+        dot.className = "color-dot";
+        dot.style.background = palette[index % palette.length];
+
+        const name = document.createElement("span");
+        name.className = "item-name";
+        name.textContent = item;
+
+        const removeButton = document.createElement("button");
+        removeButton.className = "remove-button";
+        removeButton.type = "button";
+        removeButton.setAttribute("aria-label", `${item} 삭제`);
+        removeButton.textContent = "×";
+        removeButton.disabled = state.spinning;
+        removeButton.addEventListener("click", () => {
+          const nextItems = state.items.filter((_, itemIndex) => itemIndex !== index);
+          setItems(nextItems);
+        });
+
+        row.append(dot, name, removeButton);
+        list.append(row);
+      });
+
+      itemsBox.append(list);
+    }
+
+    function applyRotation(degrees) {
+      wheelRotor.style.transform = `rotate(${degrees}deg)`;
+    }
+
+    function easeSpin(t) {
+      return 1 - Math.pow(1 - t, 4.2);
+    }
+
+    function currentVolumeMultiplier() {
+      return volumeMultipliers[state.volumeLevel - 1] || 1;
+    }
+
+    function updateSoundUI() {
+      soundButton.setAttribute("aria-pressed", String(state.soundOn));
+      soundText.textContent = state.soundOn ? "사운드" : "무음";
+      soundSymbol.textContent = state.soundOn ? "♪" : "×";
+      volumeControl.classList.toggle("is-muted", !state.soundOn);
+    }
+
+    function updateVolumeButtons() {
+      volumeButtons.forEach((button) => {
+        const level = Number(button.dataset.volume);
+        const isActive = level === state.volumeLevel;
+        button.classList.toggle("is-active", isActive);
+        button.classList.toggle("is-filled", level <= state.volumeLevel);
+        button.setAttribute("aria-pressed", String(isActive));
+      });
+    }
+
+    function setVolumeLevel(level, playPreview = false) {
+      state.volumeLevel = Math.min(5, Math.max(1, Number(level) || 4));
+      updateVolumeButtons();
+
+      if (playPreview && state.soundOn) {
+        ensureAudio();
+        playTone({
+          frequency: 340 + state.volumeLevel * 52,
+          duration: 0.075,
+          type: "sine",
+          gain: 0.018
+        });
+      }
+    }
+
+    function ensureAudio() {
+      if (!state.soundOn) {
+        return null;
+      }
+
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) {
+        return null;
+      }
+
+      if (!state.audioContext) {
+        state.audioContext = new AudioContext();
+      }
+
+      if (state.audioContext.state === "suspended") {
+        state.audioContext.resume();
+      }
+
+      return state.audioContext;
+    }
+
+    function playTone({ frequency = 440, duration = 0.12, type = "sine", gain = 0.04, startAt = 0, endFrequency = null }) {
+      const audio = ensureAudio();
+      if (!audio) {
+        return;
+      }
+
+      const now = audio.currentTime + startAt;
+      const oscillator = audio.createOscillator();
+      const volume = audio.createGain();
+      const scaledGain = Math.min(0.16, gain * currentVolumeMultiplier());
+
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, now);
+      if (endFrequency) {
+        oscillator.frequency.exponentialRampToValueAtTime(endFrequency, now + duration);
+      }
+
+      volume.gain.setValueAtTime(0.0001, now);
+      volume.gain.exponentialRampToValueAtTime(scaledGain, now + 0.018);
+      volume.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+      oscillator.connect(volume);
+      volume.connect(audio.destination);
+      oscillator.start(now);
+      oscillator.stop(now + duration + 0.02);
+    }
+
+    function playStartSound() {
+      playTone({ frequency: 180, endFrequency: 420, duration: 0.16, type: "triangle", gain: 0.045 });
+      playTone({ frequency: 310, endFrequency: 620, duration: 0.11, type: "sine", gain: 0.024, startAt: 0.06 });
+    }
+
+    function playTick(progress) {
+      const base = 260 + (1 - progress) * 140;
+      playTone({ frequency: base, duration: 0.035, type: "square", gain: 0.012 });
+    }
+
+    function playResultSound() {
+      playTone({ frequency: 392, duration: 0.14, type: "sine", gain: 0.045 });
+      playTone({ frequency: 523.25, duration: 0.16, type: "sine", gain: 0.042, startAt: 0.1 });
+      playTone({ frequency: 659.25, duration: 0.22, type: "triangle", gain: 0.038, startAt: 0.22 });
+    }
+
+    function spinRoulette() {
+      if (state.spinning || state.items.length < 2) {
+        return;
+      }
+
+      closeResult(false);
+      ensureAudio();
+      playStartSound();
+
+      const itemCount = state.items.length;
+      const sliceDegrees = 360 / itemCount;
+      const targetIndex = Math.floor(Math.random() * itemCount);
+      const safeOffset = sliceDegrees * 0.28;
+      const jitter = (Math.random() * 2 - 1) * safeOffset;
+      const targetRotation = -(targetIndex + 0.5) * sliceDegrees + jitter;
+      const startRotation = state.rotation;
+      const deltaToTarget = normalizeDegrees(targetRotation - startRotation);
+      const fullSpins = 6 + Math.floor(Math.random() * 3);
+      const totalDelta = fullSpins * 360 + deltaToTarget;
+      const endRotation = startRotation + totalDelta;
+      const duration = 5000 + Math.random() * 1100;
+      const startTime = performance.now();
+
+      state.spinning = true;
+      state.lastResultIndex = -1;
+      state.lastTickAt = 0;
+      state.lastTickSlice = null;
+      wheelShell.classList.add("is-spinning");
+      renderItems();
+      setControls();
+
+      function frame(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = easeSpin(progress);
+        const angle = startRotation + totalDelta * eased;
+
+        applyRotation(angle);
+        playSpinTick(angle, sliceDegrees, progress, now);
+
+        if (progress < 1) {
+          requestAnimationFrame(frame);
+          return;
+        }
+
+        state.rotation = normalizeDegrees(endRotation);
+        applyRotation(state.rotation);
+        state.spinning = false;
+        state.lastResultIndex = targetIndex;
+        wheelShell.classList.remove("is-spinning");
+        renderItems();
+        setControls();
+        playResultSound();
+        showResult(state.items[targetIndex]);
+      }
+
+      requestAnimationFrame(frame);
+    }
+
+    function playSpinTick(angle, sliceDegrees, progress, now) {
+      if (!state.soundOn || !state.audioContext) {
+        return;
+      }
+
+      const sliceAtPointer = Math.floor(normalizeDegrees(-angle) / sliceDegrees);
+      const minInterval = 34 + progress * 120;
+      if (sliceAtPointer !== state.lastTickSlice && now - state.lastTickAt > minInterval) {
+        playTick(progress);
+        state.lastTickAt = now;
+        state.lastTickSlice = sliceAtPointer;
+      }
+    }
+
+    function showResult(value) {
+      resultTitle.textContent = value;
+      resultOverlay.classList.add("show");
+      resultOverlay.setAttribute("aria-hidden", "false");
+      burstParticles();
+      window.setTimeout(() => resultCloseButton.focus({ preventScroll: true }), 80);
+    }
+
+    function closeResult(returnFocus = true) {
+      resultOverlay.classList.remove("show");
+      resultOverlay.setAttribute("aria-hidden", "true");
+      if (returnFocus) {
+        spinButton.focus({ preventScroll: true });
+      }
+    }
+
+    function burstParticles() {
+      const particleColors = ["#e7f4ec", "#fff0dc", "#ece8ff", "#ffe2e9", "#e0f0ff", "#111827", "#ffffff"];
+      confettiLayer.innerHTML = "";
+
+      for (let index = 0; index < 76; index += 1) {
+        const piece = document.createElement("span");
+        const isSpark = index % 5 === 0;
+        const angle = Math.random() * Math.PI * 2;
+        const distance = 140 + Math.random() * Math.min(window.innerWidth, 620) * 0.45;
+        const fall = 80 + Math.random() * 210;
+        const x = Math.cos(angle) * distance;
+        const y = Math.sin(angle) * distance * 0.52 + fall;
+
+        piece.className = isSpark ? "spark-piece" : "confetti-piece";
+        piece.style.setProperty("--particle-color", particleColors[index % particleColors.length]);
+        piece.style.setProperty("--particle-x", `${x.toFixed(1)}px`);
+        piece.style.setProperty("--particle-y", `${y.toFixed(1)}px`);
+        piece.style.setProperty("--particle-rotate", `${Math.round(Math.random() * 720 - 360)}deg`);
+        piece.style.setProperty("--particle-duration", `${(1.25 + Math.random() * 0.9).toFixed(2)}s`);
+        piece.style.setProperty("--particle-width", `${Math.round(6 + Math.random() * 6)}px`);
+        piece.style.setProperty("--particle-height", `${Math.round(10 + Math.random() * 12)}px`);
+        confettiLayer.append(piece);
+      }
+    }
+
+    function shuffleItems() {
+      if (state.spinning || state.items.length < 2) {
+        return;
+      }
+
+      const nextItems = [...state.items];
+      for (let index = nextItems.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [nextItems[index], nextItems[swapIndex]] = [nextItems[swapIndex], nextItems[index]];
+      }
+      setItems(nextItems);
+    }
+
+    spinButton.addEventListener("click", spinRoulette);
+
+    applyButton.addEventListener("click", () => {
+      setItems(parseItems(itemInput.value), { keepInput: true });
+    });
+
+    clearButton.addEventListener("click", () => {
+      setItems([]);
+    });
+
+    shuffleButton.addEventListener("click", shuffleItems);
+
+    resetButton.addEventListener("click", () => {
+      state.rotation = 0;
+      applyRotation(0);
+      setItems(initialItems);
+    });
+
+    soundButton.addEventListener("click", () => {
+      state.soundOn = !state.soundOn;
+      updateSoundUI();
+      if (state.soundOn) {
+        ensureAudio();
+        playTone({ frequency: 520, duration: 0.06, type: "sine", gain: 0.018 });
+      }
+    });
+
+    volumeButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        if (!state.soundOn) {
+          state.soundOn = true;
+          updateSoundUI();
+        }
+        setVolumeLevel(button.dataset.volume, true);
+      });
+    });
+
+    itemInput.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        applyButton.click();
+      }
+    });
+
+    resultCloseButton.addEventListener("click", () => closeResult());
+
+    resultOverlay.addEventListener("click", (event) => {
+      if (event.target === resultOverlay) {
+        closeResult();
+      }
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && resultOverlay.classList.contains("show")) {
+        closeResult();
+      }
+    });
+
+    const resizeObserver = new ResizeObserver(resizeWheel);
+    resizeObserver.observe(wheelRotor);
+    window.addEventListener("load", resizeWheel);
+
+    applyRotation(state.rotation);
+    renderItems();
+    setControls();
+    resizeWheel();
+  </script>
+</body>
+</html>
